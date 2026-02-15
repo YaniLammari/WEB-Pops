@@ -1,0 +1,883 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FoodFlow - Gestion de Restaurant</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+        
+        * {
+            font-family: 'Inter', sans-serif;
+        }
+        
+        /* Variables de thème */
+        :root {
+            --bg-primary: #0f172a;
+            --bg-secondary: #1e293b;
+            --bg-tertiary: #334155;
+            --text-primary: #f8fafc;
+            --text-secondary: #cbd5e1;
+            --text-tertiary: #94a3b8;
+            --border-color: #334155;
+        }
+        
+        [data-theme="light"] {
+            --bg-primary: #ffffff;
+            --bg-secondary: #f8fafc;
+            --bg-tertiary: #e2e8f0;
+            --text-primary: #0f172a;
+            --text-secondary: #475569;
+            --text-tertiary: #64748b;
+            --border-color: #e2e8f0;
+        }
+        
+        .gradient-text {
+            background: linear-gradient(to right, #34d399, #22d3ee);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        @keyframes pulse-green {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        .animate-pulse-green {
+            animation: pulse-green 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        
+        .scrollbar-hide::-webkit-scrollbar {
+            display: none;
+        }
+        
+        .scrollbar-hide {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        
+        /* Styles pour le mode clair */
+        [data-theme="light"] body {
+            background: linear-gradient(to bottom right, #f1f5f9, #e2e8f0, #f1f5f9);
+        }
+        
+        [data-theme="light"] .sidebar-bg {
+            background: linear-gradient(to bottom, #ffffff, #f8fafc);
+            border-color: var(--border-color);
+        }
+        
+        [data-theme="light"] .card-bg {
+            background: linear-gradient(to bottom right, rgba(255, 255, 255, 0.8), rgba(248, 250, 252, 0.8));
+            border-color: var(--border-color);
+        }
+        
+        /* Styles pour le mode sombre */
+        body {
+            background: linear-gradient(to bottom right, #0f172a, #1e293b, #0f172a);
+        }
+        
+        .sidebar-bg {
+            background: linear-gradient(to bottom, #1e293b, #0f172a);
+            border-color: var(--border-color);
+        }
+        
+        .card-bg {
+            background: linear-gradient(to bottom right, rgba(30, 41, 59, 0.5), rgba(15, 23, 42, 0.5));
+            border-color: var(--border-color);
+        }
+        
+        .theme-toggle {
+            position: fixed;
+            top: 1.5rem;
+            right: 1.5rem;
+            z-index: 1000;
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+            padding: 0.75rem;
+            border-radius: 0.75rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+        
+        .theme-toggle:hover {
+            transform: scale(1.05);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.2);
+        }
+        
+        .theme-toggle svg {
+            width: 20px;
+            height: 20px;
+        }
+    </style>
+</head>
+<body class="overflow-hidden transition-colors duration-300">
+    <button id="themeToggle" class="theme-toggle" onclick="toggleTheme()">
+        <svg id="sunIcon" stroke="currentColor" fill="none" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="5"></circle>
+            <line x1="12" y1="1" x2="12" y2="3"></line>
+            <line x1="12" y1="21" x2="12" y2="23"></line>
+            <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line>
+            <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line>
+            <line x1="1" y1="12" x2="3" y2="12"></line>
+            <line x1="21" y1="12" x2="23" y2="12"></line>
+            <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line>
+            <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line>
+        </svg>
+        <svg id="moonIcon" style="display: none;" stroke="currentColor" fill="none" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+        </svg>
+    </button>
+    <div id="app" class="flex h-screen"></div>
+
+    <script>
+        // Données initiales
+        const initialStockItems = [
+            { id: 1, name: 'Bœuf haché', category: 'Viandes', quantity: 15, unit: 'kg', lastUpdate: '31/01/2026' },
+            { id: 2, name: 'Pain burger', category: 'Boulangerie', quantity: 48, unit: 'pcs', lastUpdate: '31/01/2026' },
+            { id: 3, name: 'Tomates', category: 'Légumes', quantity: 8, unit: 'kg', lastUpdate: '31/01/2026' },
+            { id: 4, name: 'Salade', category: 'Légumes', quantity: 12, unit: 'pcs', lastUpdate: '31/01/2026' },
+            { id: 5, name: 'Fromage Cheddar', category: 'Produits laitiers', quantity: 3, unit: 'kg', lastUpdate: '31/01/2026' },
+            { id: 6, name: 'Frites surgelées', category: 'Surgelés', quantity: 25, unit: 'kg', lastUpdate: '31/01/2026' },
+            { id: 7, name: 'Coca-Cola', category: 'Boissons', quantity: 72, unit: 'pcs', lastUpdate: '31/01/2026' },
+            { id: 8, name: 'Eau Minérale', category: 'Boissons', quantity: 48, unit: 'pcs', lastUpdate: '31/01/2026' },
+            { id: 9, name: "Huile d'olive", category: 'Épicerie', quantity: 4, unit: 'L', lastUpdate: '31/01/2026' },
+            { id: 10, name: 'Pâtes', category: 'Épicerie', quantity: 8, unit: 'kg', lastUpdate: '31/01/2026' },
+        ];
+
+        const menuItems = [
+            { id: 1, name: 'Burger Classic', category: 'Burgers', price: 12.50, available: true },
+            { id: 2, name: 'Burger Cheese', category: 'Burgers', price: 14.00, available: true },
+            { id: 3, name: 'Burger Veggie', category: 'Burgers', price: 13.00, available: true },
+            { id: 4, name: 'Frites Maison', category: 'Accompagnements', price: 4.50, available: true },
+            { id: 5, name: 'Salade César', category: 'Salades', price: 14.00, available: true },
+            { id: 6, name: 'Pizza Margherita', category: 'Pizzas', price: 15.00, available: true },
+            { id: 7, name: 'Pizza 4 Fromages', category: 'Pizzas', price: 17.00, available: false },
+            { id: 8, name: 'Pâtes Carbonara', category: 'Pâtes', price: 13.00, available: true },
+            { id: 9, name: 'Steak Frites', category: 'Plats', price: 22.00, available: true },
+            { id: 10, name: 'Coca-Cola', category: 'Boissons', price: 3.50, available: true },
+            { id: 11, name: 'Eau Minérale', category: 'Boissons', price: 2.50, available: true },
+            { id: 12, name: 'Bière Blonde', category: 'Boissons', price: 5.00, available: true },
+            { id: 13, name: 'Vin Rouge', category: 'Boissons', price: 18.00, available: true },
+        ];
+
+        const initialOrders = [
+            { 
+                id: 'ORD-038312', 
+                source: 'Caisse', 
+                status: 'En attente', 
+                customer: 'Client',
+                items: [
+                    { name: 'Burger Cheese', quantity: 1, price: 14.00 },
+                    { name: 'Salade César', quantity: 1, price: 14.00 },
+                    { name: 'Pizza Margherita', quantity: 1, price: 15.00 }
+                ],
+                total: 47.30,
+                time: '10:50'
+            },
+            { 
+                id: 'ORD-001', 
+                source: 'Agent IA', 
+                status: 'En préparation', 
+                customer: 'Jean Dupont',
+                items: [
+                    { name: 'Burger Classic', quantity: 2, price: 12.50 },
+                    { name: 'Frites Maison', quantity: 2, price: 4.50 }
+                ],
+                total: 40.00,
+                time: '12:30'
+            },
+            { 
+                id: 'ORD-002', 
+                source: 'Caisse', 
+                status: 'Prêt', 
+                customer: 'Marie Martin',
+                items: [
+                    { name: 'Salade César', quantity: 1, price: 14.00 },
+                    { name: 'Eau Minérale', quantity: 1, price: 2.50 }
+                ],
+                total: 16.50,
+                time: '12:45'
+            },
+            { 
+                id: 'ORD-003', 
+                source: 'Agent IA', 
+                status: 'En attente', 
+                customer: 'Pierre Bernard',
+                items: [
+                    { name: 'Steak Frites', quantity: 1, price: 22.00 },
+                    { name: 'Coca-Cola', quantity: 1, price: 3.50 }
+                ],
+                total: 23.50,
+                time: '13:00'
+            },
+            { 
+                id: 'ORD-004', 
+                source: 'Caisse', 
+                status: 'Terminé', 
+                customer: 'Sophie Leroy',
+                items: [
+                    { name: 'Pâtes Carbonara', quantity: 2, price: 13.00 },
+                    { name: 'Vin Rouge', quantity: 1, price: 18.00 }
+                ],
+                total: 44.00,
+                time: '13:15'
+            },
+        ];
+
+        const recentCalls = [
+            { phone: '+33 6 12 34 56 78', status: 'Commande passée', time: '14:32', duration: '3:45' },
+            { phone: '+33 6 98 76 54 32', status: 'Renseignements', time: '14:28', duration: '1:20' },
+            { phone: '+33 6 55 44 33 22', status: 'Manqué', time: '14:15', duration: '0:00' },
+        ];
+
+        // État de l'application
+        let state = {
+            currentPage: 'dashboard',
+            orders: [...initialOrders],
+            selectedOrder: null,
+            cart: [],
+            customerName: '',
+            selectedCategory: 'Tout',
+            stockItems: [...initialStockItems],
+            searchQuery: '',
+            stockCategory: 'Toutes les catégories',
+            theme: 'dark',
+        };
+
+        const categories = ['Tout', 'Burgers', 'Accompagnements', 'Salades', 'Pizzas', 'Pâtes', 'Plats', 'Boissons', 'Desserts'];
+        const stockCategories = ['Toutes les catégories', 'Viandes', 'Boulangerie', 'Légumes', 'Produits laitiers', 'Surgelés', 'Boissons', 'Épicerie'];
+
+        // Fonction pour changer le thème
+        function toggleTheme() {
+            state.theme = state.theme === 'dark' ? 'light' : 'dark';
+            document.documentElement.setAttribute('data-theme', state.theme);
+            
+            const sunIcon = document.getElementById('sunIcon');
+            const moonIcon = document.getElementById('moonIcon');
+            
+            if (state.theme === 'light') {
+                sunIcon.style.display = 'none';
+                moonIcon.style.display = 'block';
+            } else {
+                sunIcon.style.display = 'block';
+                moonIcon.style.display = 'none';
+            }
+            
+            localStorage.setItem('theme', state.theme);
+        }
+        
+        // Initialiser le thème au chargement
+        function initTheme() {
+            const savedTheme = localStorage.getItem('theme') || 'dark';
+            state.theme = savedTheme;
+            document.documentElement.setAttribute('data-theme', savedTheme);
+            
+            const sunIcon = document.getElementById('sunIcon');
+            const moonIcon = document.getElementById('moonIcon');
+            
+            if (savedTheme === 'light') {
+                sunIcon.style.display = 'none';
+                moonIcon.style.display = 'block';
+            }
+        }
+
+        // Icônes SVG
+        const icons = {
+            dashboard: `<svg stroke="currentColor" fill="none" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round" height="20" width="20"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>`,
+            cart: `<svg stroke="currentColor" fill="none" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round" height="20" width="20"><circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path></svg>`,
+            dollar: `<svg stroke="currentColor" fill="none" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round" height="20" width="20"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>`,
+            package: `<svg stroke="currentColor" fill="none" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round" height="20" width="20"><line x1="16.5" y1="9.4" x2="7.5" y2="4.21"></line><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline><line x1="12" y1="22.08" x2="12" y2="12"></line></svg>`,
+            phone: `<svg stroke="currentColor" fill="none" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round" height="20" width="20"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>`,
+            trending: `<svg stroke="currentColor" fill="none" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round" height="14" width="14"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"></polyline><polyline points="17 6 23 6 23 12"></polyline></svg>`,
+            clock: `<svg stroke="currentColor" fill="none" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round" height="20" width="20"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>`,
+            check: `<svg stroke="currentColor" fill="none" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round" height="20" width="20"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>`,
+            alert: `<svg stroke="currentColor" fill="none" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round" height="20" width="20"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>`,
+            search: `<svg stroke="currentColor" fill="none" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round" height="20" width="20"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.35-4.35"></path></svg>`,
+        };
+
+        // Fonctions utilitaires
+        function getStatusColor(status) {
+            switch(status) {
+                case 'En attente': return 'text-blue-400 bg-blue-500/10';
+                case 'En préparation': return 'text-orange-400 bg-orange-500/10';
+                case 'Prêt': return 'text-green-400 bg-green-500/10';
+                case 'Terminé': return 'text-gray-400 bg-gray-500/10';
+                default: return 'text-gray-400 bg-gray-500/10';
+            }
+        }
+
+        function addToCart(item) {
+            const existingItem = state.cart.find(cartItem => cartItem.id === item.id);
+            if (existingItem) {
+                state.cart = state.cart.map(cartItem => 
+                    cartItem.id === item.id 
+                        ? { ...cartItem, quantity: cartItem.quantity + 1 }
+                        : cartItem
+                );
+            } else {
+                state.cart = [...state.cart, { ...item, quantity: 1 }];
+            }
+            render();
+        }
+
+        function updateOrderStatus(orderId, newStatus) {
+            state.orders = state.orders.map(order => 
+                order.id === orderId ? { ...order, status: newStatus } : order
+            );
+            state.selectedOrder = null;
+            render();
+        }
+
+        function getCartTotal() {
+            return state.cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+        }
+
+        function selectOrder(order) {
+            if (state.selectedOrder?.id === order.id) {
+                state.selectedOrder = null;
+            } else {
+                state.selectedOrder = order;
+            }
+            render();
+        }
+
+        // Composants
+        function Sidebar() {
+            const menuItems = [
+                { id: 'dashboard', icon: icons.dashboard, label: 'Dashboard' },
+                { id: 'commandes', icon: icons.cart, label: 'Commandes' },
+                { id: 'caisse', icon: icons.dollar, label: 'Caisse' },
+                { id: 'stocks', icon: icons.package, label: 'Stocks' },
+                { id: 'agent', icon: icons.phone, label: 'Agent IA' },
+            ];
+
+            return `
+                <div class="w-64 sidebar-bg border-r p-6 flex flex-col transition-colors duration-300" style="border-color: var(--border-color);">
+                    <div class="mb-12">
+                        <h1 class="text-3xl font-bold gradient-text">FoodFlow</h1>
+                    </div>
+                    
+                    <nav class="space-y-2 flex-1">
+                        ${menuItems.map(item => `
+                            <button
+                                onclick="state.currentPage = '${item.id}'; render();"
+                                class="w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300 ${
+                                    state.currentPage === item.id
+                                        ? 'bg-gradient-to-r from-emerald-500/20 to-cyan-500/20 text-emerald-400 shadow-lg shadow-emerald-500/10'
+                                        : 'hover:bg-opacity-50'
+                                }"
+                                style="color: ${state.currentPage === item.id ? '' : 'var(--text-secondary)'};"
+                            >
+                                ${item.icon}
+                                <span class="font-medium">${item.label}</span>
+                            </button>
+                        `).join('')}
+                    </nav>
+                </div>
+            `;
+        }
+
+        function Dashboard() {
+            const stats = [
+                { label: "Chiffre d'affaires", value: '12 847,5€', change: '+12.5% vs hier', icon: icons.dollar, color: 'blue' },
+                { label: 'Commandes', value: '342', change: '+8.2% vs hier', icon: icons.cart, color: 'emerald' },
+                { label: 'Appels Agent IA', value: '156', change: '+15.3% vs hier', icon: icons.phone, color: 'purple' },
+                { label: 'Panier moyen', value: '37.56€', change: '+3.8% vs hier', icon: icons.trending, color: 'cyan' },
+            ];
+
+            const barHeights = [60, 65, 70, 75, 85, 95, 80];
+            const days = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
+
+            return `
+                <div class="p-8 space-y-8 overflow-y-auto h-full scrollbar-hide">
+                    <div>
+                        <h2 class="text-4xl font-bold mb-2" style="color: var(--text-primary);">Dashboard</h2>
+                        <p style="color: var(--text-secondary);">Vue d'ensemble de votre activité</p>
+                    </div>
+
+                    <div class="grid grid-cols-4 gap-6">
+                        ${stats.map(stat => `
+                            <div class="card-bg backdrop-blur-sm border rounded-2xl p-6 hover:scale-105 transition-transform duration-300">
+                                <div class="flex items-center justify-between mb-4">
+                                    <span class="text-sm" style="color: var(--text-secondary);">${stat.label}</span>
+                                    <div class="bg-${stat.color}-500/10 p-2 rounded-lg text-${stat.color}-400">
+                                        ${stat.icon}
+                                    </div>
+                                </div>
+                                <div class="text-3xl font-bold mb-2" style="color: var(--text-primary);">${stat.value}</div>
+                                <div class="text-emerald-400 text-sm flex items-center gap-1">
+                                    ${icons.trending}
+                                    ${stat.change}
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-6">
+                        <div class="card-bg backdrop-blur-sm border rounded-2xl p-6">
+                            <h3 class="text-xl font-bold mb-6" style="color: var(--text-primary);">Chiffre d'affaires hebdomadaire</h3>
+                            <div class="h-64 flex items-end gap-4">
+                                ${days.map((day, i) => `
+                                    <div class="flex-1 flex flex-col items-center gap-2">
+                                        <div 
+                                            class="w-full bg-gradient-to-t from-emerald-500 to-cyan-500 rounded-t-lg transition-all duration-500 hover:from-emerald-400 hover:to-cyan-400"
+                                            style="height: ${barHeights[i]}%"
+                                        ></div>
+                                        <span class="text-xs" style="color: var(--text-secondary);">${day}</span>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+
+                        <div class="card-bg backdrop-blur-sm border rounded-2xl p-6">
+                            <h3 class="text-xl font-bold mb-6" style="color: var(--text-primary);">Répartition des commandes</h3>
+                            <div class="flex items-center justify-center h-64">
+                                <div class="relative w-48 h-48">
+                                    <svg viewBox="0 0 100 100" class="transform -rotate-90">
+                                        <circle cx="50" cy="50" r="40" fill="none" stroke="#3b82f6" stroke-width="20" stroke-dasharray="75 25" />
+                                        <circle cx="50" cy="50" r="40" fill="none" stroke="#10b981" stroke-width="20" stroke-dasharray="15 85" stroke-dashoffset="-75" />
+                                        <circle cx="50" cy="50" r="40" fill="none" stroke="#f59e0b" stroke-width="20" stroke-dasharray="10 90" stroke-dashoffset="-90" />
+                                    </svg>
+                                </div>
+                            </div>
+                            <div class="flex justify-center gap-6 mt-6">
+                                <div class="flex items-center gap-2">
+                                    <div class="w-3 h-3 rounded-full bg-blue-500"></div>
+                                    <span class="text-sm" style="color: var(--text-secondary);">Agent IA</span>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <div class="w-3 h-3 rounded-full bg-emerald-500"></div>
+                                    <span class="text-sm" style="color: var(--text-secondary);">Caisse</span>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <div class="w-3 h-3 rounded-full bg-orange-500"></div>
+                                    <span class="text-sm" style="color: var(--text-secondary);">En ligne</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function Commandes() {
+            return `
+                <div class="p-8 overflow-y-auto h-full scrollbar-hide">
+                    <div class="mb-8">
+                        <h2 class="text-4xl font-bold mb-2" style="color: var(--text-primary);">Commandes</h2>
+                        <p style="color: var(--text-secondary);">Gérez vos commandes en temps réel</p>
+                    </div>
+
+                    <div class="grid grid-cols-3 gap-6">
+                        <div class="col-span-2 space-y-4">
+                            ${state.orders.map((order, index) => `
+                                <div
+                                    onclick="selectOrder(state.orders[${index}])"
+                                    class="card-bg backdrop-blur-sm border rounded-2xl p-6 cursor-pointer transition-all duration-300 hover:scale-[1.02] ${
+                                        state.selectedOrder?.id === order.id ? 'border-emerald-500 shadow-lg shadow-emerald-500/20' : ''
+                                    }"
+                                >
+                                    <div class="flex items-center justify-between mb-4">
+                                        <div class="flex items-center gap-4">
+                                            <h3 class="text-xl font-bold" style="color: var(--text-primary);">${order.id}</h3>
+                                            <span class="px-3 py-1 rounded-full text-sm" style="background-color: var(--bg-tertiary); color: var(--text-secondary);">${order.source}</span>
+                                            <span class="px-3 py-1 rounded-full text-sm ${getStatusColor(order.status)}">
+                                                ${order.status}
+                                            </span>
+                                        </div>
+                                        <div class="text-2xl font-bold text-emerald-400">${order.total.toFixed(2)}€</div>
+                                    </div>
+                                    <div class="flex items-center justify-between text-sm" style="color: var(--text-secondary);">
+                                        <span>${order.customer}</span>
+                                        <div class="flex items-center gap-4">
+                                            <span>${order.items.length} article(s) • ${order.time}</span>
+                                            <button class="text-emerald-400 hover:text-emerald-300 transition-colors">
+                                                Détails
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+
+                        <div class="card-bg backdrop-blur-sm border rounded-2xl p-6">
+                            ${state.selectedOrder ? `
+                                <div class="space-y-6">
+                                    <div>
+                                        <div class="flex items-center justify-between mb-2">
+                                            <h3 class="text-2xl font-bold" style="color: var(--text-primary);">${state.selectedOrder.id}</h3>
+                                            <span class="px-3 py-1 rounded-full text-sm ${getStatusColor(state.selectedOrder.status)}">
+                                                ${state.selectedOrder.status}
+                                            </span>
+                                        </div>
+                                        <p style="color: var(--text-secondary);">Client</p>
+                                        <p class="font-medium" style="color: var(--text-primary);">${state.selectedOrder.customer}</p>
+                                    </div>
+
+                                    <div>
+                                        <h4 class="text-sm font-semibold mb-3" style="color: var(--text-secondary);">Articles</h4>
+                                        <div class="space-y-3">
+                                            ${state.selectedOrder.items.map(item => `
+                                                <div class="flex items-center justify-between">
+                                                    <span style="color: var(--text-secondary);">${item.quantity}x ${item.name}</span>
+                                                    <span class="font-medium" style="color: var(--text-primary);">${(item.price * item.quantity).toFixed(2)}€</span>
+                                                </div>
+                                            `).join('')}
+                                        </div>
+                                    </div>
+
+                                    <div class="pt-4" style="border-top: 1px solid var(--border-color);">
+                                        <div class="flex items-center justify-between text-xl font-bold">
+                                            <span style="color: var(--text-primary);">Total</span>
+                                            <span class="text-emerald-400">${state.selectedOrder.total.toFixed(2)}€</span>
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <h4 class="text-sm font-semibold mb-3" style="color: var(--text-secondary);">Changer le statut</h4>
+                                        <div class="grid grid-cols-2 gap-2">
+                                            ${['En attente', 'En préparation', 'Prêt', 'Terminé', 'Annulé'].map(status => `
+                                                <button
+                                                    onclick="event.stopPropagation(); updateOrderStatus('${state.selectedOrder.id}', '${status}')"
+                                                    class="px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${
+                                                        state.selectedOrder.status === status
+                                                            ? 'bg-emerald-500 text-white'
+                                                            : ''
+                                                    }"
+                                                    style="${state.selectedOrder.status !== status ? 'background-color: var(--bg-tertiary); color: var(--text-secondary);' : ''}"
+                                                >
+                                                    ${status}
+                                                </button>
+                                            `).join('')}
+                                        </div>
+                                    </div>
+                                </div>
+                            ` : `
+                                <div class="flex flex-col items-center justify-center h-full text-center">
+                                    <div class="p-4 rounded-full mb-4" style="background-color: var(--bg-tertiary); color: var(--text-tertiary);">
+                                        ${icons.cart}
+                                    </div>
+                                    <p style="color: var(--text-secondary);">Sélectionnez une commande pour voir les détails</p>
+                                </div>
+                            `}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function Caisse() {
+            const filteredMenuItems = menuItems.filter(item => 
+                state.selectedCategory === 'Tout' || item.category === state.selectedCategory
+            );
+            const cartTotal = getCartTotal();
+
+            return `
+                <div class="p-8 overflow-y-auto h-full scrollbar-hide">
+                    <div class="mb-8">
+                        <h2 class="text-4xl font-bold mb-2" style="color: var(--text-primary);">Caisse</h2>
+                        <p style="color: var(--text-secondary);">Système de point de vente</p>
+                    </div>
+
+                    <div class="grid grid-cols-3 gap-6">
+                        <div class="col-span-2">
+                            <div class="flex gap-2 mb-6 overflow-x-auto pb-2 scrollbar-hide">
+                                ${categories.map(cat => `
+                                    <button
+                                        onclick="state.selectedCategory = '${cat}'; render();"
+                                        class="px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 whitespace-nowrap ${
+                                            state.selectedCategory === cat
+                                                ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/30'
+                                                : ''
+                                        }"
+                                        style="${state.selectedCategory !== cat ? 'background-color: var(--bg-tertiary); color: var(--text-secondary);' : ''}"
+                                    >
+                                        ${cat}
+                                    </button>
+                                `).join('')}
+                            </div>
+
+                            <div class="grid grid-cols-3 gap-4">
+                                ${filteredMenuItems.map((item, index) => `
+                                    <button
+                                        onclick="${item.available ? `addToCart(menuItems.find(i => i.id === ${item.id}))` : ''}"
+                                        ${!item.available ? 'disabled' : ''}
+                                        class="card-bg backdrop-blur-sm border rounded-2xl p-6 text-left transition-all duration-300 ${
+                                            item.available
+                                                ? 'hover:scale-105 hover:border-emerald-500/50 cursor-pointer'
+                                                : 'opacity-50 cursor-not-allowed'
+                                        }"
+                                    >
+                                        <div class="mb-2">
+                                            <h3 class="font-bold mb-1" style="color: var(--text-primary);">${item.name}</h3>
+                                            <p class="text-sm" style="color: var(--text-secondary);">${item.category}</p>
+                                        </div>
+                                        <div class="flex items-center justify-between">
+                                            <span class="text-2xl font-bold text-emerald-400">${item.price.toFixed(2)}€</span>
+                                            ${!item.available ? '<span class="px-2 py-1 bg-red-500/20 text-red-400 text-xs rounded-full">Indisponible</span>' : ''}
+                                        </div>
+                                    </button>
+                                `).join('')}
+                            </div>
+                        </div>
+
+                        <div class="card-bg backdrop-blur-sm border rounded-2xl p-6">
+                            <h3 class="text-2xl font-bold mb-6" style="color: var(--text-primary);">Panier</h3>
+                            
+                            <input
+                                type="text"
+                                placeholder="Nom du client (optionnel)"
+                                value="${state.customerName}"
+                                oninput="state.customerName = this.value"
+                                class="w-full mb-6 px-4 py-3 border rounded-lg transition-colors"
+                                style="background-color: var(--bg-secondary); border-color: var(--border-color); color: var(--text-primary);"
+                            />
+
+                            ${state.cart.length === 0 ? `
+                                <div class="flex flex-col items-center justify-center py-12 text-center">
+                                    <div class="p-4 rounded-full mb-4" style="background-color: var(--bg-tertiary); color: var(--text-tertiary);">
+                                        ${icons.cart}
+                                    </div>
+                                    <p style="color: var(--text-secondary);">Aucun article dans le panier</p>
+                                </div>
+                            ` : `
+                                <div class="space-y-4 mb-6">
+                                    ${state.cart.map(item => `
+                                        <div class="flex items-center justify-between p-3 rounded-lg" style="background-color: rgba(${state.theme === 'dark' ? '15, 23, 42' : '241, 245, 249'}, 0.3);">
+                                            <div class="flex-1">
+                                                <p class="font-medium" style="color: var(--text-primary);">${item.name}</p>
+                                                <p class="text-sm" style="color: var(--text-secondary);">${item.quantity}x ${item.price.toFixed(2)}€</p>
+                                            </div>
+                                            <span class="text-emerald-400 font-bold">${(item.price * item.quantity).toFixed(2)}€</span>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            `}
+
+                            <div class="space-y-3 mb-6 pt-6" style="border-top: 1px solid var(--border-color);">
+                                <div class="flex justify-between" style="color: var(--text-secondary);">
+                                    <span>Sous-total</span>
+                                    <span>${cartTotal.toFixed(2)}€</span>
+                                </div>
+                                <div class="flex justify-between" style="color: var(--text-secondary);">
+                                    <span>TVA (10%)</span>
+                                    <span>${(cartTotal * 0.1).toFixed(2)}€</span>
+                                </div>
+                                <div class="flex justify-between text-2xl font-bold pt-3" style="border-top: 1px solid var(--border-color);">
+                                    <span style="color: var(--text-primary);">Total</span>
+                                    <span class="text-emerald-400">${(cartTotal * 1.1).toFixed(2)}€</span>
+                                </div>
+                            </div>
+
+                            <div class="grid grid-cols-2 gap-3">
+                                <button class="px-6 py-4 text-white rounded-xl font-semibold transition-all duration-300 hover:scale-105" style="background-color: var(--bg-tertiary);">
+                                    Espèces
+                                </button>
+                                <button class="px-6 py-4 bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-600 hover:to-cyan-600 text-white rounded-xl font-semibold transition-all duration-300 hover:scale-105 shadow-lg shadow-emerald-500/30">
+                                    Carte
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function Stocks() {
+            const filteredStockItems = state.stockItems.filter(item => {
+                const matchesSearch = item.name.toLowerCase().includes(state.searchQuery.toLowerCase());
+                const matchesCategory = state.stockCategory === 'Toutes les catégories' || item.category === state.stockCategory;
+                return matchesSearch && matchesCategory;
+            });
+
+            return `
+                <div class="p-8 overflow-y-auto h-full scrollbar-hide">
+                    <div class="mb-8">
+                        <h2 class="text-4xl font-bold mb-2" style="color: var(--text-primary);">Stocks</h2>
+                        <p style="color: var(--text-secondary);">Gestion des stocks en temps réel</p>
+                    </div>
+
+                    <div class="flex gap-4 mb-6">
+                        <div class="flex-1 relative">
+                            <div class="absolute left-4 top-1/2 transform -translate-y-1/2" style="color: var(--text-tertiary);">
+                                ${icons.search}
+                            </div>
+                            <input
+                                type="text"
+                                placeholder="Rechercher un article..."
+                                value="${state.searchQuery}"
+                                oninput="state.searchQuery = this.value; render();"
+                                class="w-full pl-12 pr-4 py-3 border rounded-xl transition-colors"
+                                style="background-color: var(--bg-secondary); border-color: var(--border-color); color: var(--text-primary);"
+                            />
+                        </div>
+                        <select
+                            value="${state.stockCategory}"
+                            onchange="state.stockCategory = this.value; render();"
+                            class="px-6 py-3 border rounded-xl transition-colors"
+                            style="background-color: var(--bg-secondary); border-color: var(--border-color); color: var(--text-primary);"
+                        >
+                            ${stockCategories.map(cat => `
+                                <option value="${cat}" ${state.stockCategory === cat ? 'selected' : ''}>${cat}</option>
+                            `).join('')}
+                        </select>
+                    </div>
+
+                    <div class="grid grid-cols-3 gap-6">
+                        ${filteredStockItems.map(item => `
+                            <div class="card-bg backdrop-blur-sm border rounded-2xl p-6 hover:scale-105 transition-all duration-300 hover:border-emerald-500/50">
+                                <div class="flex items-start justify-between mb-4">
+                                    <div class="p-3 rounded-lg text-emerald-400" style="background-color: var(--bg-tertiary);">
+                                        ${icons.package}
+                                    </div>
+                                    <div class="text-right">
+                                        <div class="text-3xl font-bold" style="color: var(--text-primary);">${item.quantity}</div>
+                                        <div class="text-sm" style="color: var(--text-secondary);">${item.unit}</div>
+                                    </div>
+                                </div>
+                                <h3 class="text-lg font-bold mb-1" style="color: var(--text-primary);">${item.name}</h3>
+                                <p class="text-sm mb-3" style="color: var(--text-secondary);">${item.category}</p>
+                                <p class="text-xs" style="color: var(--text-tertiary);">Mis à jour: ${item.lastUpdate}</p>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+        }
+
+        function AgentIA() {
+            const stats = [
+                { label: 'Appels totaux', value: '156', icon: icons.phone, color: 'blue' },
+                { label: 'Appels répondus', value: '148', subtext: '94.9% de réponse', icon: icons.check, color: 'emerald' },
+                { label: 'Appels manqués', value: '8', icon: icons.alert, color: 'red' },
+                { label: 'Durée moyenne', value: '2m 34s', icon: icons.clock, color: 'purple' },
+                { label: 'Commandes passées', value: '89', subtext: '60.1% conversion', icon: icons.cart, color: 'emerald' },
+            ];
+
+            const metrics = [
+                { label: 'Taux de réponse', value: 94.9, color: 'emerald' },
+                { label: 'Taux de conversion', value: 60.1, color: 'blue' },
+                { label: 'Satisfaction client', value: 92, color: 'purple' }
+            ];
+
+            return `
+                <div class="p-8 overflow-y-auto h-full scrollbar-hide">
+                    <div class="mb-8 flex items-center justify-between">
+                        <div>
+                            <h2 class="text-4xl font-bold mb-2" style="color: var(--text-primary);">Agent IA Réceptionniste</h2>
+                            <p style="color: var(--text-secondary);">Statistiques et historique des appels</p>
+                        </div>
+                        <div class="px-4 py-2 bg-emerald-500/20 text-emerald-400 rounded-full font-semibold flex items-center gap-2">
+                            <div class="w-2 h-2 bg-emerald-400 rounded-full animate-pulse-green"></div>
+                            En ligne
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-3 gap-6 mb-8">
+                        ${stats.map(stat => `
+                            <div class="card-bg backdrop-blur-sm border rounded-2xl p-6">
+                                <div class="flex items-center justify-between mb-4">
+                                    <span class="text-sm" style="color: var(--text-secondary);">${stat.label}</span>
+                                    <div class="bg-${stat.color}-500/10 p-2 rounded-lg text-${stat.color}-400">
+                                        ${stat.icon}
+                                    </div>
+                                </div>
+                                <div class="text-3xl font-bold ${stat.subtext ? 'mb-2' : ''}" style="color: var(--text-primary);">${stat.value}</div>
+                                ${stat.subtext ? `<div class="text-${stat.color}-400 text-sm">${stat.subtext}</div>` : ''}
+                            </div>
+                        `).join('')}
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-6">
+                        <div class="card-bg backdrop-blur-sm border rounded-2xl p-6">
+                            <h3 class="text-xl font-bold mb-6" style="color: var(--text-primary);">Performance</h3>
+                            <div class="space-y-4">
+                                ${metrics.map(metric => `
+                                    <div>
+                                        <div class="flex justify-between mb-2">
+                                            <span style="color: var(--text-secondary);">${metric.label}</span>
+                                            <span class="font-bold" style="color: var(--text-primary);">${metric.value}%</span>
+                                        </div>
+                                        <div class="h-2 rounded-full overflow-hidden" style="background-color: var(--bg-tertiary);">
+                                            <div 
+                                                class="h-full bg-gradient-to-r from-${metric.color}-500 to-${metric.color}-400 transition-all duration-1000"
+                                                style="width: ${metric.value}%"
+                                            ></div>
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+
+                        <div class="card-bg backdrop-blur-sm border rounded-2xl p-6">
+                            <h3 class="text-xl font-bold mb-6" style="color: var(--text-primary);">Appels récents</h3>
+                            <div class="space-y-4">
+                                ${recentCalls.map(call => `
+                                    <div class="flex items-center justify-between p-4 rounded-lg" style="background-color: rgba(${state.theme === 'dark' ? '15, 23, 42' : '241, 245, 249'}, 0.3);">
+                                        <div class="flex items-center gap-3">
+                                            <div class="p-2 rounded-lg ${
+                                                call.status === 'Manqué' ? 'bg-red-500/10 text-red-400' : 'bg-emerald-500/10 text-emerald-400'
+                                            }">
+                                                ${icons.phone}
+                                            </div>
+                                            <div>
+                                                <p class="font-medium" style="color: var(--text-primary);">${call.phone}</p>
+                                                <p class="text-sm" style="color: var(--text-secondary);">${call.status}</p>
+                                            </div>
+                                        </div>
+                                        <div class="text-right">
+                                            <p class="font-medium" style="color: var(--text-primary);">${call.time}</p>
+                                            <p class="text-sm" style="color: var(--text-secondary);">${call.duration}</p>
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Fonction de rendu principale
+        function render() {
+            const app = document.getElementById('app');
+            let content = '';
+
+            switch(state.currentPage) {
+                case 'dashboard':
+                    content = Dashboard();
+                    break;
+                case 'commandes':
+                    content = Commandes();
+                    break;
+                case 'caisse':
+                    content = Caisse();
+                    break;
+                case 'stocks':
+                    content = Stocks();
+                    break;
+                case 'agent':
+                    content = AgentIA();
+                    break;
+            }
+
+            app.innerHTML = `
+                ${Sidebar()}
+                <div class="flex-1 overflow-y-auto">
+                    ${content}
+                </div>
+            `;
+        }
+
+        // Initialisation
+        window.addEventListener('DOMContentLoaded', () => {
+            initTheme();
+            render();
+        });
+    </script>
+</body>
+</html>
